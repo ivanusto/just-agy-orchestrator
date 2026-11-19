@@ -54,7 +54,7 @@ stop
 Environment variables (new JUST_AGY_* names; the old AGY_ARGON_* names still work, and
 JUST_AGY_* wins when both are set):
     JUST_AGY_PIN_SETTINGS=1           opt in to rewriting settings.json at session start
-    JUST_AGY_PRIMARY_MODEL=<name>     target model when pinning (default: Gemini 4 Argon (High))
+    JUST_AGY_PRIMARY_MODEL=<name>     target model when pinning (default: Gemini 4 Hydrogen (High))
     JUST_AGY_ALLOW_NON_PRIMARY=1      silence all primary-model warnings
                                       (legacy: AGY_ARGON_ALLOW_NON_PRIMARY, AGY_ALLOW_NON_ARGON_PRIMARY)
     AGY_ANTIGRAVITY_SETTINGS=<path>   override the settings.json location (tests)
@@ -124,6 +124,8 @@ from just_agy_hook.models import (  # noqa: F401,E402
     is_argon_tier,
     is_frontier_tier,
     is_orchestrator_executor,
+    model_key,
+    primary_cost_advice,
     settings_path,
 )
 from just_agy_hook.routing import (  # noqa: F401,E402

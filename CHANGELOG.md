@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.0.4 - 2026-11-19
+
+Ports the agy changes of mitosis-orchestrator 2.7.8 (verified on agy 1.5.12; the hook model logic is shared).
+
+### Added
+- Gemini 4 Neon is a frontier primary at every level (`gemini-4-neon-low|medium|high|xhigh`, display names too); `Gemini 4 Neon (High)`, `(Medium)`, `(XHigh)` and `Orchestrator (Neon)` are valid `JUST_AGY_PRIMARY_MODEL` pin targets. `gemini-pro-orchestrator-neon` is frontier.
+- One-time primary cost advice: when the primary is an XHigh / Extra High model or an agy Orchestrator (not its executor), SessionStart appends a note (live `modelName` preferred over settings.json) and PreInvocation emits it once per model as an `ephemeralMessage`. The model is never changed. `JUST_AGY_PRIMARY_ADVICE=0` silences it. New helpers `model_key` and `primary_cost_advice`.
+- README section "Choosing the primary on agy". Measured 2026-11-19 on the agy harness-bench (token-equivalent cost, n=3): Neon High 21/21 US$7.85, Hydrogen High 21/21 US$2.10, Neon XHigh 19/21 US$22.24, Orchestrator (Neon) 20/21 US$21.75.
+
+### Changed
+- The default primary (`JUST_AGY_PRIMARY_MODEL` fallback) is now `Gemini 4 Hydrogen (High)` instead of `Gemini 4 Argon (High)`.
+- Non-frontier warning texts mention Neon.
+
 ## 3.0.3 - 2026-11-13
 
 ### Changed

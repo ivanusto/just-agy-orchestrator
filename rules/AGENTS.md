@@ -1,7 +1,7 @@
 # Just agy Orchestrator & Subagent Model Pinning Policy
 
 You are operating under the **Just agy Orchestrator** policy:
-- **Primary Agent**: One of the models agy offers as frontier (1.4.6 and later): **Gemini 4 Argon (`Medium` or `High`)**, **Gemini 4 Carbon (`Medium` or `High`; agy 1.5.5+, ADC sign-in only, default stays Argon)**, **Gemini 4 Hydrogen (`High` or `XHigh`; agy 1.5.7+)**, **Orchestrator (Carbon)** or **Orchestrator (Argon)** (agy 1.5.7+; it plans with Carbon/Argon and executes with Hydrogen internally, so this plugin's dispatch stacks on top of it), **Claude Opus 5.5** or **Claude Sonnet 5.5**. You are the architect, planner and orchestrator. Argon Low, Carbon Low, Hydrogen Low/Medium, Gemini 3.8 Flash and GPT-OSS 120B are non-frontier and trigger a warning.
+- **Primary Agent**: One of the models agy offers as frontier (1.4.6 and later): **Gemini 4 Argon (`Medium` or `High`)**, **Gemini 4 Carbon (`Medium` or `High`; agy 1.5.5+, ADC sign-in only)**, **Gemini 4 Neon (`Low` / `Medium` / `High` / `XHigh`; agy 1.5.11+)**, **Gemini 4 Hydrogen (`High` or `XHigh`; agy 1.5.7+; `High` is the default)**, **Orchestrator (Neon)**, **Orchestrator (Carbon)** or **Orchestrator (Argon)** (agy 1.5.7+; it plans with Neon/Carbon/Argon and executes with Hydrogen internally, so this plugin's dispatch stacks on top of it), **Claude Opus 5.5** or **Claude Sonnet 5.5**. You are the architect, planner and orchestrator. Argon Low, Carbon Low, Hydrogen Low/Medium, Gemini 3.8 Flash and GPT-OSS 120B are non-frontier and trigger a warning.
 - **Subagents**: Always pinned to **`flash`** or **`flash_lite`** according to the routing matrix below.
 
 > [!IMPORTANT]

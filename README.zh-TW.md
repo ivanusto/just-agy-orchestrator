@@ -4,7 +4,7 @@
 
 僅支援 Antigravity（`agy`）的外掛。以尖端模型擔任主控代理，並透過具信心分數的規則引擎，將每個子代理路由至 `flash` 或 `flash_lite`；同時管制高風險工具呼叫，並強制子代理使用有界的四標頭回報格式。
 
-支援的主控模型（以 agy 1.4.6 起的提供者為準）：**Gemini 4 Argon（Medium / High）**、**Gemini 4 Carbon（Medium / High）**（agy 1.5.5 以上，僅限 ADC 登入；預設仍為 Argon）、**Gemini 4 Hydrogen（High / XHigh）**、**Orchestrator（Carbon）** / **Orchestrator（Argon）**（agy 1.5.7 以上）、**Claude Opus 5.5**、**Claude Sonnet 5.5**。agy Orchestrator 內部已將規劃（Carbon/Argon）與執行（Hydrogen）分工，因此本外掛的派工是疊加在其上。Orchestrator (Carbon) 在規劃結束（`exit_plan_mode`）後交給內部執行者，hook 收到的 `modelName` 會變成 `gemini-flash-worker-agy`，本外掛視為 Orchestrator 的一部分，不發非尖端警告。Argon Low、Carbon Low、Hydrogen Low/Medium、Gemini 3.8 Flash 與 GPT-OSS 120B 會被警告為非尖端模型。
+支援的主控模型（以 agy 1.4.6 起的提供者為準）：**Gemini 4 Argon（Medium / High）**、**Gemini 4 Carbon（Medium / High）**（agy 1.5.5 以上，僅限 ADC 登入）、**Gemini 4 Neon（Low / Medium / High / XHigh）**、**Gemini 4 Hydrogen（High / XHigh）**、**Orchestrator（Neon）** / **Orchestrator（Carbon）** / **Orchestrator（Argon）**（agy 1.5.7 以上）。預設主控為 **Gemini 4 Hydrogen（High）**、**Claude Opus 5.5**、**Claude Sonnet 5.5**。agy Orchestrator 內部已將規劃（Carbon/Argon）與執行（Hydrogen）分工，因此本外掛的派工是疊加在其上。Orchestrator (Carbon) 在規劃結束（`exit_plan_mode`）後交給內部執行者，hook 收到的 `modelName` 會變成 `gemini-flash-worker-agy`，本外掛視為 Orchestrator 的一部分，不發非尖端警告。Argon Low、Carbon Low、Hydrogen Low/Medium、Gemini 3.8 Flash 與 GPT-OSS 120B 會被警告為非尖端模型。
 
 ---
 
@@ -63,6 +63,18 @@ agy 的 `Role` 僅為標籤（例如「Add Scout」），不影響路由；關�
 
 ---
 
+## 在 agy 上選擇主控
+
+hook 的模型判斷邏輯與 mitosis-orchestrator 相同，mitosis 已於 agy 1.5.12（2026-11-19）驗證。完整比較請見 mitosis README：[Choosing the primary model on agy](https://github.com/ivanusto/mitosis-orchestrator#choosing-the-primary-model-on-agy-neon-hydrogen-xhigh-and-orchestrator)。
+
+- 使用 API 金鑰者：Gemini 4 Hydrogen（High）；遇到困難的故障排查再改用 Gemini 4 Neon（High）。
+- Pro / Ultra 訂閱使用者：Gemini 4 Neon（High）。
+- 循序、單一執行緒的工作不要預設使用 XHigh 或 Orchestrator 主控。主控為這類模型時，外掛會依模型各提示一次，且不會自行更換模型。
+
+2026-11-19 於 agy harness-bench 實測（7 題 x 3 次，以 token 等價成本計，n=3）：Neon High 21/21、US$7.85；Hydrogen High 21/21、US$2.10；Neon XHigh 19/21、US$22.24；Orchestrator (Neon) 20/21、US$21.75。
+
+---
+
 ## 權限行為
 
 於 agy 1.4.6 實測確認（2026-10-23）：
@@ -83,7 +95,8 @@ agy 的 `Role` 僅為標籤（例如「Add Scout」），不影響路由；關�
 | 變數 | 作用 |
 | :--- | :--- |
 | `JUST_AGY_PIN_SETTINGS=1` | 工作階段開始時將 `settings.json` 改寫為主控模型。 |
-| `JUST_AGY_PRIMARY_MODEL` | 釘選時使用的模型（預設 `Gemini 4 Argon (High)`）。 |
+| `JUST_AGY_PRIMARY_MODEL` | 釘選時使用的模型（預設 `Gemini 4 Hydrogen (High)`）。 |
+| `JUST_AGY_PRIMARY_ADVICE=0` | 關閉主控為 XHigh 或 Orchestrator 模型時的一次性成本提示。 |
 | `JUST_AGY_ALLOW_NON_PRIMARY=1` | 關閉主控模型警告。 |
 | `JUST_AGY_AUTO_ALLOW=1` | 對工作區內工具授予 `permissionOverrides`。 |
 | `JUST_AGY_MAX_DIRECT_EDITS=<int>` | 主控每回合可直接編輯的不同檔案數（預設 3）。 |

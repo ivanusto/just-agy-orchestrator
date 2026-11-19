@@ -38,6 +38,8 @@ from .models import (
     check_primary_model_settings,
     is_frontier_tier,
     is_orchestrator_executor,
+    model_key,
+    primary_cost_advice,
 )
 from .state import _releases_state_locks, _state_file, load_state, save_state, sync_subagents
 from .tools import (
@@ -73,6 +75,16 @@ def handle_session_start(payload: Dict[str, Any]) -> Dict[str, Any]:
         note = "settings.json not found; the live model is checked on every turn instead."
     if mitosis_active():
         note = f"{note} {COEXISTENCE_WARNING}"
+    # SessionStart may carry the live modelName; settings.json can name another model when `--model`
+    # is used, so the advisory goes by the live model when there is one.
+    live = str(payload.get("modelName") or "").strip()
+    advised_model = live or (model if status in ("ok", "pinned") else "")
+    advice = primary_cost_advice(advised_model) if advised_model else None
+    if advice:
+        state = load_state(payload)
+        state["primary_advised"] = model_key(advised_model)
+        save_state(payload, state)
+        note = f"{note} {advice}"
     return {
         "injectSteps": [
             {"systemMessage": {"systemMessage": f"[Just agy Orchestrator Active] {note} {POLICY_NOTICE}"}}
@@ -177,6 +189,12 @@ def handle_pre_invocation(payload: Dict[str, Any]) -> Dict[str, Any]:
             inject.append(nudge)
 
     model_name = str(payload.get("modelName") or "")
+    if not is_sub and not is_orchestrator_executor(model_name):
+        # Once per conversation and model (SessionStart may already have advised on settings.json's model).
+        advice = primary_cost_advice(model_name)
+        if advice and state.get("primary_advised") != model_key(model_name):
+            state["primary_advised"] = model_key(model_name)
+            inject.append({"ephemeralMessage": advice})
     if (
         not is_sub
         and model_name

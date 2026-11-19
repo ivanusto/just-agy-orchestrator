@@ -4,7 +4,7 @@
 
 An Antigravity (`agy`) only plugin. It keeps a frontier model as the primary orchestrator and routes every subagent to `flash` or `flash_lite` with a confidence-scored rule engine, guards the risky tool calls, and enforces a bounded four-header subagent report.
 
-Supported primary models (as offered by agy 1.4.6 and later): **Gemini 4 Argon (Medium / High)**, **Gemini 4 Carbon (Medium / High)** (agy 1.5.5+, ADC sign-in only; the default stays Argon), **Gemini 4 Hydrogen (High / XHigh)** and **Orchestrator (Carbon)** / **Orchestrator (Argon)** (agy 1.5.7+), **Claude Opus 5.5**, **Claude Sonnet 5.5**. The agy Orchestrator splits planning (Carbon/Argon) and execution (Hydrogen) internally, so this plugin's dispatch stacks on top of it. After planning ends (`exit_plan_mode`) Orchestrator (Carbon) hands execution to an internal executor whose hook payloads report `modelName` as `gemini-flash-worker-agy`; the plugin treats it as part of the Orchestrator and does not issue the non-frontier warning. Argon Low, Carbon Low, Hydrogen Low/Medium, Gemini 3.8 Flash and GPT-OSS 120B are warned about as non-frontier.
+Supported primary models (as offered by agy 1.4.6 and later): **Gemini 4 Argon (Medium / High)**, **Gemini 4 Carbon (Medium / High)** (agy 1.5.5+, ADC sign-in only), **Gemini 4 Neon (Low / Medium / High / XHigh)**, **Gemini 4 Hydrogen (High / XHigh)** and **Orchestrator (Neon)** / **Orchestrator (Carbon)** / **Orchestrator (Argon)** (agy 1.5.7+). The default primary is **Gemini 4 Hydrogen (High)**, **Claude Opus 5.5**, **Claude Sonnet 5.5**. The agy Orchestrator splits planning (Carbon/Argon) and execution (Hydrogen) internally, so this plugin's dispatch stacks on top of it. After planning ends (`exit_plan_mode`) Orchestrator (Carbon) hands execution to an internal executor whose hook payloads report `modelName` as `gemini-flash-worker-agy`; the plugin treats it as part of the Orchestrator and does not issue the non-frontier warning. Argon Low, Carbon Low, Hydrogen Low/Medium, Gemini 3.8 Flash and GPT-OSS 120B are warned about as non-frontier.
 
 ---
 
@@ -30,7 +30,7 @@ Supported primary models (as offered by agy 1.4.6 and later): **Gemini 4 Argon (
 | Hook | What it does |
 | :--- | :--- |
 | `SessionStart` | Checks the primary model in `~/.gemini/antigravity-cli/settings.json` and warns if it is not on the list above. Warns when `mitosis-orchestrator` is also enabled. Rewrites settings only with `JUST_AGY_PIN_SETTINGS=1`. |
-| `PreInvocation` | Re-checks the live model each turn (catches UI model switches) and resets per-turn tracking. |
+| `PreInvocation` | Re-checks the live model each turn (catches UI model switches), resets per-turn tracking, and says once per model when the primary is an XHigh or Orchestrator model (see below). |
 | `PreToolUse` `invoke_subagent` | Routes every subagent to `flash` or `flash_lite`, appends the REPORT FORMAT block to prompts missing the four headers, applies scout escalation, and denies when the circuit breaker is tripped. agy 1.4.6 sends one flat `invoke_subagent` call per subagent; both forms are handled. |
 | `PreToolUse` `send_message` | Denies code-change or multi-step follow-ups to a `flash_lite` recipient. Validates a subagent's own report to its parent and denies an invalid one once so it resends. |
 | `PreToolUse` `run_workflow` / `define_subagent` | Denies `agent(...)` calls without `model="flash"` or `"flash_lite"`; forces `enable_subagent_tools=false`. |
@@ -63,6 +63,18 @@ The contract is `STATUS`, `FILES_CHANGED`, `VERIFICATION`, `NOTES`; up to 10 bul
 
 ---
 
+## Choosing the primary on agy
+
+The hook model logic is shared with mitosis-orchestrator, which verified it on agy 1.5.12 (2026-11-19). The full comparison is in the mitosis README: [Choosing the primary model on agy](https://github.com/ivanusto/mitosis-orchestrator#choosing-the-primary-model-on-agy-neon-hydrogen-xhigh-and-orchestrator).
+
+- API-key users: Gemini 4 Hydrogen (High); switch to Gemini 4 Neon (High) for hard triage.
+- Pro/Ultra subscription users: Gemini 4 Neon (High).
+- Do not default to XHigh or an Orchestrator primary for sequential single-thread work. When the primary is one of those, the plugin says so once per model and never changes the model itself.
+
+Measured 2026-11-19 on the agy harness-bench (7 tasks x 3, token-equivalent cost, n=3): Neon High 21/21 at US$7.85, Hydrogen High 21/21 at US$2.10, Neon XHigh 19/21 at US$22.24, Orchestrator (Neon) 20/21 at US$21.75.
+
+---
+
 ## Permission behaviour
 
 Verified live on agy 1.4.6 (2026-10-23):
@@ -83,7 +95,8 @@ The settings use the `JUST_AGY_*` prefix. The old `AGY_ARGON_*` names (and `AGY_
 | Variable | Effect |
 | :--- | :--- |
 | `JUST_AGY_PIN_SETTINGS=1` | Rewrite `settings.json` to the primary model at session start. |
-| `JUST_AGY_PRIMARY_MODEL` | Model used when pinning (default `Gemini 4 Argon (High)`). |
+| `JUST_AGY_PRIMARY_MODEL` | Model used when pinning (default `Gemini 4 Hydrogen (High)`). |
+| `JUST_AGY_PRIMARY_ADVICE=0` | Silence the one-time cost advice shown when the primary is an XHigh or Orchestrator model. |
 | `JUST_AGY_ALLOW_NON_PRIMARY=1` | Silence primary-model warnings. |
 | `JUST_AGY_AUTO_ALLOW=1` | Grant `permissionOverrides` for in-workspace tools. |
 | `JUST_AGY_MAX_DIRECT_EDITS=<int>` | Distinct workspace files the primary may edit per turn (default 3). |

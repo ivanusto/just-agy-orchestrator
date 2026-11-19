@@ -110,6 +110,9 @@ class TestPrimaryModelList(unittest.TestCase):
                      "gemini-4-hydrogen-high", "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen",
                      "Gemini 4 Hydrogen (High)", "Gemini 4 Hydrogen (XHigh)",
                      "Gemini 4 Hydrogen (Extra High)", "gemini-pro-orchestrator",
+                     "gemini-4-neon-low", "gemini-4-neon-medium", "gemini-4-neon-high", "gemini-4-neon-xhigh",
+                     "gemini-4-neon", "Gemini 4 Neon (High)", "Gemini 4 Neon (XHigh)",
+                     "gemini-pro-orchestrator-neon", "Orchestrator (Neon)",
                      "gemini-pro-orchestrator-argon", "Orchestrator (Carbon)", "Orchestrator (Argon)"):
             self.assertTrue(eo.is_argon_tier(name), name)
 
@@ -132,7 +135,7 @@ class TestPrimaryModelList(unittest.TestCase):
         os.environ.update({"AGY_ANTIGRAVITY_SETTINGS": str(path), "AGY_ARGON_PIN_SETTINGS": "1",
                            "AGY_ARGON_PRIMARY_MODEL": "GPT-OSS 120B (Medium)"})
         status, model = eo.check_primary_model_settings()
-        self.assertEqual((status, model), ("pinned", "Gemini 4 Argon (High)"))
+        self.assertEqual((status, model), ("pinned", "Gemini 4 Hydrogen (High)"))
         os.environ["AGY_ARGON_PRIMARY_MODEL"] = "Claude Sonnet 5.5 (Medium)"
         path.write_text(json.dumps({"model": "gemini-3.8-flash-high"}), encoding="utf-8")
         self.assertEqual(eo.check_primary_model_settings(), ("pinned", "Claude Sonnet 5.5 (Medium)"))
@@ -148,7 +151,7 @@ class TestPrimaryModelList(unittest.TestCase):
                            "JUST_AGY_PRIMARY_MODEL": "Gemini 4 Carbon (High)"})
         self.assertEqual(eo.check_primary_model_settings(), ("pinned", "Gemini 4 Carbon (High)"))
         self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["model"], "Gemini 4 Carbon (High)")
-        self.assertEqual(eo.DEFAULT_PRIMARY_MODEL, "Gemini 4 Argon (High)")
+        self.assertEqual(eo.DEFAULT_PRIMARY_MODEL, "Gemini 4 Hydrogen (High)")
 
     def test_allow_non_argon_still_silences(self):
         tmp = tempfile.TemporaryDirectory()

@@ -6,7 +6,7 @@ import stat
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 
-DEFAULT_PRIMARY_MODEL = "Gemini 4 Argon (High)"
+DEFAULT_PRIMARY_MODEL = "Gemini 4 Hydrogen (High)"
 ALLOWED_PRIMARY_MODELS = {
     "Gemini 4 Argon (High)",
     "Gemini 4 Argon (Medium)",
@@ -14,6 +14,10 @@ ALLOWED_PRIMARY_MODELS = {
     "Gemini 4 Carbon (Medium)",
     "Gemini 4 Hydrogen (High)",
     "Gemini 4 Hydrogen (XHigh)",
+    "Gemini 4 Neon (High)",
+    "Gemini 4 Neon (Medium)",
+    "Gemini 4 Neon (XHigh)",
+    "Orchestrator (Neon)",
     "Orchestrator (Carbon)",
     "Orchestrator (Argon)",
 }

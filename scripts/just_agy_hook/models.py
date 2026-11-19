@@ -10,19 +10,20 @@ from .common import ALLOWED_PRIMARY_MODELS, DEFAULT_PRIMARY_MODEL, _env, _env_fl
 
 
 SMALL_TIER_RE = re.compile(r"\b(flash|lite|mini|nano|haiku)\b", re.IGNORECASE)
-# Frontier primaries: Gemini 4 Argon or Carbon Medium/High, Gemini 4 Hydrogen High/XHigh (agy 1.5.7+),
-# the agy Orchestrator (Carbon/Argon, plans with Carbon/Argon and executes with Hydrogen internally),
+# Frontier primaries: Gemini 4 Argon or Carbon Medium/High, Gemini 4 Neon at every level,
+# Gemini 4 Hydrogen High/XHigh (agy 1.5.7+),
+# the agy Orchestrator (Neon/Carbon/Argon, plans with Carbon/Argon and executes with Hydrogen internally),
 # and Claude Opus/Sonnet (any version). Argon/Carbon Low, Hydrogen Low/Medium, Flash, GPT-OSS and
 # every other model are not frontier.
-FRONTIER_TOKENS = ("argon", "carbon", "hydrogen", "orchestrator", "claude", "opus", "sonnet")
+FRONTIER_TOKENS = ("argon", "carbon", "neon", "hydrogen", "orchestrator", "claude", "opus", "sonnet")
 ALLOWED_PRIMARY_TEXT = (
-    "Gemini 4 Argon or Carbon (Medium or High), Gemini 4 Hydrogen (High or XHigh), "
+    "Gemini 4 Argon or Carbon (Medium or High), Gemini 4 Neon (any level), Gemini 4 Hydrogen (High or XHigh), "
     "agy Orchestrator, or Claude Opus/Sonnet"
 )
 
 
 def is_frontier_tier(model_name: str) -> bool:
-    """True for Gemini 4 Argon/Carbon Medium/High, Gemini 4 Hydrogen High/XHigh, the agy Orchestrator
+    """True for Gemini 4 Argon/Carbon Medium/High, Gemini 4 Neon at every level, Gemini 4 Hydrogen High/XHigh, the agy Orchestrator
     and Claude Opus/Sonnet, by display name or id."""
     normalized = re.sub(r"[_\s]+", "-", (model_name or "").strip().lower())
     if not normalized or normalized in {"auto", "none", "inherit"}:
@@ -30,7 +31,7 @@ def is_frontier_tier(model_name: str) -> bool:
     words = re.sub(r"[^a-z0-9.]+", " ", normalized)
     if SMALL_TIER_RE.search(words):
         return False
-    if "orchestrator" in words:
+    if "orchestrator" in words or "neon" in words:
         return True
     if "hydrogen" in words:
         return not re.search(r"\b(low|medium)\b", words)
@@ -48,6 +49,38 @@ ORCHESTRATOR_EXECUTOR_MODELS = frozenset({"gemini-flash-worker-agy"})
 
 def is_orchestrator_executor(model_name: str) -> bool:
     return (model_name or "").strip().lower() in ORCHESTRATOR_EXECUTOR_MODELS
+
+
+def model_key(model_name: Any) -> str:
+    """Spelling-independent key: 'Gemini 4 Neon (XHigh)' and 'gemini-4-neon-xhigh' compare equal."""
+    return "-".join(seg for seg in re.split(r"[^a-z0-9]+", str(model_name or "").lower()) if seg)
+
+
+def primary_cost_advice(model_name: Any) -> Optional[str]:
+    """One-line advisory for agy primaries measured slower and costlier on sequential work.
+
+    XHigh / Extra High levels and the agy Orchestrator family (not its executor) get the advice;
+    every other model returns None. JUST_AGY_PRIMARY_ADVICE=0 turns it off.
+    """
+    if _env("PRIMARY_ADVICE", default="1") == "0":
+        return None
+    name = str(model_name or "").strip()
+    normalized = name.lower()
+    if not normalized or is_orchestrator_executor(normalized) or not is_frontier_tier(normalized):
+        return None
+    segments = [seg for seg in re.split(r"[^a-z0-9]+", normalized) if seg]
+    xhigh = "xhigh" in segments or ("extra" in segments and "high" in segments)
+    if not (xhigh or "orchestrator" in segments):
+        return None
+    kind = "an XHigh" if xhigh else "an Orchestrator"
+    return (
+        f"[Just agy Orchestrator] Note: '{name}' is {kind} primary. In an isolated agy benchmark "
+        "(2026-11-19, 7 sequential single-directory tasks x 3) Gemini 4 Neon XHigh passed 19/21 and "
+        "Orchestrator (Neon) 20/21, both about 2.8x the token-equivalent cost of Neon High (21/21) and "
+        "slower; Hydrogen High also passed 21/21 at about a quarter of Neon High's cost. Mention once to "
+        "the user that the High level is usually the better default for this kind of work; do not change "
+        "the model yourself. JUST_AGY_PRIMARY_ADVICE=0 silences this."
+    )
 
 
 def settings_path() -> str:

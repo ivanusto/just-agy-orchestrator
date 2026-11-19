@@ -334,6 +334,83 @@ class TestPrimaryModelGuard(HookBase):
         self.assertIn("WARNING", msg)
         self.assertEqual(json.loads(path.read_text())["model"], "gemini-3-flash")
 
+    def _start_and_pre(self, settings_model, live_model):
+        self._settings(settings_model)
+        start = eo.handle_session_start(dict(self.payload, modelName=live_model))
+        pre = eo.handle_pre_invocation(dict(self.payload, modelName=live_model, invocationNum=2))
+        return start, pre
+
+    def test_neon_primary_is_not_warned(self):
+        for model in ("gemini-4-neon-low", "gemini-4-neon-high", "gemini-pro-orchestrator-neon"):
+            with self.subTest(pre=model):
+                res = eo.handle_pre_invocation(dict(self.payload, modelName=model, invocationNum=2))
+                self.assertNotIn("not an allowed primary", json.dumps(res))
+        for model in ("Gemini 4 Neon (High)", "Gemini 4 Neon (XHigh)", "Orchestrator (Neon)"):
+            with self.subTest(settings=model):
+                self._settings(model)
+                self.assertNotIn("not an allowed primary", json.dumps(eo.handle_session_start(dict(self.payload))))
+
+    def test_primary_cost_advice_selection(self):
+        for name in (
+            "gemini-4-neon-xhigh", "Gemini 4 Neon (XHigh)", "gemini-4-hydrogen-xhigh",
+            "Gemini 4 Hydrogen (Extra High)", "gemini-pro-orchestrator", "gemini-pro-orchestrator-neon",
+            "gemini-pro-orchestrator-argon", "Orchestrator (Neon)", "Orchestrator (Carbon)",
+        ):
+            with self.subTest(advised=name):
+                self.assertTrue(eo.primary_cost_advice(name), name)
+        for name in (
+            "gemini-4-neon-high", "gemini-4-neon-medium", "gemini-4-neon-low", "gemini-4-hydrogen-high",
+            "gemini-flash-worker-agy", "gemini-3.8-flash-high", "haiku", "", None,
+        ):
+            with self.subTest(plain=name):
+                self.assertIsNone(eo.primary_cost_advice(name), name)
+
+    def test_primary_cost_advice_env_off_switch(self):
+        for var in ("JUST_AGY_PRIMARY_ADVICE", "AGY_ARGON_PRIMARY_ADVICE"):
+            with self.subTest(var=var):
+                os.environ[var] = "0"
+                self.assertIsNone(eo.primary_cost_advice("gemini-4-neon-xhigh"))
+                start, pre = self._start_and_pre("Gemini 4 Neon (XHigh)", "gemini-4-neon-xhigh")
+                self.assertNotIn("XHigh primary", json.dumps(start))
+                self.assertNotIn("XHigh primary", json.dumps(pre))
+                del os.environ[var]
+
+    def test_advice_once_per_model_across_session_start_and_pre_invocation(self):
+        start, pre = self._start_and_pre("Gemini 4 Neon (XHigh)", "gemini-4-neon-xhigh")
+        self.assertEqual(json.dumps(start).count("XHigh primary"), 1, json.dumps(start))
+        self.assertNotIn("XHigh primary", json.dumps(pre))
+        self.assertEqual(eo.model_key("Gemini 4 Neon (XHigh)"), eo.model_key("gemini-4-neon-xhigh"))
+        other = dict(self.payload, modelName="gemini-pro-orchestrator-neon", invocationNum=3)
+        first = eo.handle_pre_invocation(other)
+        self.assertEqual(json.dumps(first).count("Orchestrator primary"), 1, json.dumps(first))
+        self.assertNotIn("Orchestrator primary", json.dumps(eo.handle_pre_invocation(dict(other, invocationNum=4))))
+
+    def test_executor_never_gets_advice(self):
+        res = eo.handle_pre_invocation(dict(self.payload, modelName="gemini-flash-worker-agy", invocationNum=2))
+        self.assertNotIn("primary. In an isolated", json.dumps(res))
+
+    def test_session_start_advice_uses_settings_without_live_model(self):
+        self._settings("Gemini 4 Neon (XHigh)")
+        bare = {k: v for k, v in self.payload.items() if k != "modelName"}
+        start = eo.handle_session_start(bare)
+        self.assertEqual(json.dumps(start).count("XHigh primary"), 1, json.dumps(start))
+
+    def test_session_start_advice_follows_live_model_over_settings(self):
+        self._settings("Gemini 4 Carbon (Medium)")
+        live = dict(self.payload, modelName="gemini-pro-orchestrator-neon")
+        start = eo.handle_session_start(dict(live))
+        self.assertEqual(json.dumps(start).count("Orchestrator primary"), 1, json.dumps(start))
+        pre = eo.handle_pre_invocation(dict(live, invocationNum=0))
+        self.assertNotIn("Orchestrator primary", json.dumps(pre))
+        self._settings("Gemini 4 Neon (XHigh)")
+        calm = eo.handle_session_start(dict(self.payload, modelName="gemini-4-neon-high"))
+        self.assertNotIn("primary. In an isolated agy benchmark", json.dumps(calm))
+
+    def test_default_primary_is_hydrogen_high(self):
+        self.assertEqual(eo.DEFAULT_PRIMARY_MODEL, "Gemini 4 Hydrogen (High)")
+        self.assertIn("Gemini 4 Neon (XHigh)", eo.ALLOWED_PRIMARY_MODELS)
+        self.assertIn("Orchestrator (Neon)", eo.ALLOWED_PRIMARY_MODELS)
+
     def test_session_start_pins_when_opted_in(self):
         path = self._settings("gemini-3-flash")
         os.environ["AGY_ARGON_PIN_SETTINGS"] = "1"
